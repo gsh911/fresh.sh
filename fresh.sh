@@ -1,3 +1,4 @@
+# VARS
 _serverName="lxc1"
 _primaryDNS="8.8.8.8"
 _secondaryDNS="8.8.4.4"

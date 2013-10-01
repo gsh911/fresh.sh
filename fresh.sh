@@ -421,6 +421,7 @@ rm -rf lxc-*
 rm -rf gist*
 /opt/lxc/bin/lxc-checkconfig
 sudo /opt/lxc/bin/lxc-create -n centos -t centos -B lvm --lvname lv_name --vgname vg_name --fstype ext4 --fssize 5GO
+#echo "rootfs / rootfs rw 0 0" > /etc/mtab
 #lxc.tty = 1
 rm -rf /opt/lxc/var/lib/lxc/centos/rootfs
 sudo /opt/lxc/bin/lxc-start --name centos -d -c /opt/lxc/var/lib/lxc/centos/console -o /opt/lxc/var/lib/lxc/centos/log -p /opt/lxc/var/lib/lxc/centos/pid

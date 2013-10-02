@@ -427,7 +427,7 @@ COMMIT
 -A POSTROUTING -s 192.168.1.0/24 -o eth0 -j MASQUERADE
 
 COMMIT
-EOF"
+EOF
 curl -L http://downloads.sourceforge.net/project/lxc/lxc/lxc-0.9.0/lxc-0.9.0.tar.gz > lxc-0.9.0.tar.gz
 curl -L https://gist.github.com/hagix9/3514296/download > lxc-centos.tar.gz
 tar xf lxc-0.9.0.tar.gz

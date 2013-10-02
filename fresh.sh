@@ -10,6 +10,16 @@ _ipGateway="192.168.155.2"
 _adminUser="anthony.cabero"
 _adminPassword="12341234"
 
+# PARTITIONING
+
+#/boot=100M
+#vg_${_serverName}_lv-home=1G
+#vg_${_serverName}_lv-tmp=1G
+#vg_${_serverName}_lv-root=2G
+#vg_${_serverName}_lv-usr=2G
+#vg_${_serverName}_lv-var=1G
+#vg_${_serverName}_lv-swap=RAM + 2G
+
 # MOUNT
 cat << EOF > /etc/fstab
 /dev/sda1                       /boot                   ext4    defaults,nosuid,nodev,noexec            1       2

@@ -1,7 +1,10 @@
 # VARS
 _serverName="lxc1"
 _primaryDNS="8.8.8.8"
+#62.210.16.6
 _secondaryDNS="8.8.4.4"
+#62.210.16.7
+_ntpServer="ntp.online.net"
 _domainName="cecurity.com"
 _ipAddress="192.168.155.129"
 _ipNetmask="255.255.255.0"
@@ -275,7 +278,6 @@ chmod 600 /etc/sysctl.conf
 
 # PACKETS INSTALLATION
 yum -y install logwatch vim-enhanced mlocate aide libcgroup
-updatedb
 chkconfig --del rdisc && chkconfig --del netconsole && chkconfig --del netfs && chkconfig --del restorecond && chkconfig --del blk-availability && chkconfig --del saslauthd
 chkconfig cgconfig on && chkconfig cgred on
 
@@ -378,14 +380,20 @@ reboot
 
 #LXC
 sudo yum -y install gcc libcap-devel rsync ntpdate
-sudo chkconfig --del ntpdate
 
-sudo bash -c 'cat << EOF > /etc/ntp/step-tickers
-server 0.fr.pool.ntp.org
-server 1.fr.pool.ntp.org
-server 2.fr.pool.ntp.org
-server 3.fr.pool.ntp.org
+sudo chkconfig --del ntpdate
+sudo bash -c 'echo "${_ntpServer}"> /etc/ntp/step-tickers'
+sudo bash -c 'cat << EOF > /etc/cron.daily/ntpdate
+#!/bin/sh
+
+/etc/init.d/ntpdate start >/dev/null 2>&1
+EXITVALUE=\$?
+if [ \$EXITVALUE != 0 ]; then
+    /usr/bin/logger -t ntpdate "ALERT exited abnormally with [\$EXITVALUE]"
+fi
+exit 0
 EOF'
+chmod +x /etc/cron.daily/ntpdate
 
 sed -i 's/net.ipv4.ip_forward = 0/net.ipv4.ip_forward = 1/g' /etc/sysctl.conf
 sudo bash -c 'cat << EOF > /etc/sysconfig/network-scripts/ifcfg-br0

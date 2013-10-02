@@ -1,14 +1,14 @@
 # VARS
-_serverName="lxc1"
-_domainName="cecurity.com"
-_primaryDNS="62.210.16.6"
-_secondaryDNS="62.210.16.7"
-_ntpServer="ntp.online.net"
-_ipAddress="192.168.155.129"
-_ipNetmask="255.255.255.0"
-_ipGateway="192.168.155.2"
-_adminUser="anthony.cabero"
-_adminPassword="12341234"
+_serverName=""
+_domainName=""
+_primaryDNS=""
+_secondaryDNS=""
+_ntpServer=""
+_ipAddress=""
+_ipNetmask=""
+_ipGateway=""
+_adminUser=""
+_adminPassword=""
 
 # PARTITIONING
 
@@ -561,16 +561,17 @@ chmod +x /opt/lxc/share/lxc/templates/lxc-centos
 rm -rf lxc-*
 rm -rf gist*
 /opt/lxc/bin/lxc-checkconfig
+
 cat << EOF > /opt/lxc-0.9.0/etc/lxc/default.conf
 lxc.network.type = veth
 lxc.network.link = virbr0
 lxc.network.flags = up
 lxc.tty = 1
 EOF
-/opt/lxc/bin/lxc-create -n centos -t centos -B lvm --lvname lv_lxc_centos --vgname vg_${_serverName} --fstype ext4 --fssize 5GO
-#echo "rootfs / rootfs rw 0 0" > /etc/mtab
-rm -rf /opt/lxc/var/lib/lxc/centos/rootfs
-/opt/lxc/bin/lxc-start --name centos -d -c /opt/lxc/var/lib/lxc/centos/console -o /opt/lxc/var/lib/lxc/centos/log -p /opt/lxc/var/lib/lxc/centos/pid
-/opt/lxc/bin/lxc-console -n centos
 
-reboot
+# COMMAND EXAMPLES
+
+#/opt/lxc/bin/lxc-create -n centos -t centos -B lvm --lvname lv_lxc_centos --vgname vg_${_serverName} --fstype ext4 --fssize 5GO
+#rm -rf /opt/lxc/var/lib/lxc/centos/rootfs
+#/opt/lxc/bin/lxc-start --name centos -d -c /opt/lxc/var/lib/lxc/centos/console -o /opt/lxc/var/lib/lxc/centos/log -p /opt/lxc/var/lib/lxc/centos/pid
+#/opt/lxc/bin/lxc-console -n centos

@@ -95,7 +95,8 @@ PS1="\[\e[01;41m\]\t\[\e[00m\] \[\e[01;32m\]\u@\h\[\e[00m\]:\[\e[01;34m\]\w\[\e[
 EOF
 
 # VIM
-echo "set number
+cat << EOF > /etc/skel/.vimrc 
+set number
 colorscheme slate
 filetype plugin indent on
 syntax on
@@ -106,7 +107,9 @@ set hlsearch
 set incsearch
 set shiftround
 set ignorecase
-filetype on" > /etc/skel/.vimrc 
+filetype on
+EOF
+
 mkdir -p /etc/skel/.vim/ftdetect
 echo "autocmd BufNewFile,BufReadPost messages* :se filetype=messages" > /etc/skel/.vim/ftdetect/messages.vim
 echo "autocmd BufNewFile,BufReadPost secure* :se filetype=messages" >> /etc/skel/.vim/ftdetect/messages.vim
@@ -121,11 +124,13 @@ passwd --delete root
 
 # SUDO
 adduser $_adminUser
-echo "$_adminUser:$_adminPassword" | chpasswd
-echo "$_adminUser       ALL=(ALL)       ALL" > /etc/sudoers.d/custom
+echo "${_adminUser}:${_adminPassword}" | chpasswd
+echo "${_adminUser}     ALL=(ALL)       ALL" > /etc/sudoers.d/custom
+chmod 400 /etc/sudoers.d/custom
 
 # KERNEL TUNING
-echo "
+cat << EOF >> /etc/sysctl.conf
+
 # Drop icmp redirects
 net.ipv4.conf.all.send_redirects = 0
 net.ipv4.conf.default.send_redirects = 0
@@ -147,7 +152,8 @@ net.ipv4.conf.all.log_martians = 1
 net.ipv4.icmp_ignore_bogus_error_responses = 1
 
 # Don't send timestamps
-net.ipv4.tcp_timestamps = 0" >> /etc/sysctl.conf
+net.ipv4.tcp_timestamps = 0
+EOF
 
 echo "blacklist usb-storage" > /etc/modprobe.d/blacklist-usbstorage.conf
 for i in $(find /lib/modules/`uname -r`/kernel/drivers/net/wireless -name "*.ko" -type f) ; do echo blacklist $i >> /etc/modprobe.d/blacklist-wireless.conf ; done
@@ -176,7 +182,7 @@ sed -i '/X11Forwarding yes/d' /etc/ssh/sshd_config
 sed -i 's/^#ServerKeyBits 1024/ServerKeyBits 2048/g' /etc/ssh/sshd_config
 sed -i 's/^#MaxAuthTries 6/MaxAuthTries 3/g' /etc/ssh/sshd_config
 sed -i 's/^#MaxSessions 10/MaxSessions 1/g' /etc/ssh/sshd_config
-echo "AllowUsers $_adminUser" >> /etc/ssh/sshd_config
+echo "AllowUsers ${_adminUser}" >> /etc/ssh/sshd_config
 
 echo "ALL:ALL" >> /etc/hosts.deny
 echo "sshd:ALL" >> /etc/hosts.allow
@@ -195,7 +201,9 @@ echo "NOZEROCONF=true" >> /etc/sysconfig/network
 
 # REPOSITORY
 rm -rf /etc/yum.repos.d/*
-echo "[main]
+
+cat << EOF > /etc/yum.conf
+[main]
 cachedir=/var/cache/yum/\$basearch/\$releasever
 keepcache=0
 debuglevel=2
@@ -205,13 +213,18 @@ obsoletes=1
 gpgcheck=1
 plugins=1
 bugtracker_url=http://bugs.centos.org/set_project.php?project_id=16&ref=http://bugs.centos.org/bug_report_page.php?category=yum
-distroverpkg=centos-release" > /etc/yum.conf
-echo "[CentOS-Base]
+distroverpkg=centos-release
+EOF
+
+cat << EOF > /etc/yum.repos.d/Centos.repo
+[CentOS-Base]
 name=CentOS-\$releasever - Base
 mirrorlist=http://mirrorlist.centos.org/?release=\$releasever&arch=\$basearch&repo=os
 [CentOS-Updates]
 name=CentOS-\$releasever - Updates
-mirrorlist=http://mirrorlist.centos.org/?release=\$releasever&arch=\$basearch&repo=updates" > /etc/yum.repos.d/Centos.repo
+mirrorlist=http://mirrorlist.centos.org/?release=\$releasever&arch=\$basearch&repo=updates
+EOF
+
 rm -rf /etc/pki/rpm-gpg/
 rpm --import http://mirror.centos.org/centos/RPM-GPG-KEY-CentOS-6
 

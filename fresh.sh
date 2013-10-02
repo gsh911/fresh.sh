@@ -37,6 +37,11 @@ nameserver ${_secondaryDNS}
 EOF
 
 # NETWORK
+sed -i 's/net.ipv4.ip_forward = 0/net.ipv4.ip_forward = 1/g' /etc/sysctl.conf
+echo "127.0.0.1 localhost" > /etc/hosts
+sed -i 's/localhost.localdomain/'$_serverName.$_domainName'/g' /etc/sysconfig/network
+echo "NOZEROCONF=true" >> /etc/sysconfig/network
+
 cat << EOF > /etc/sysconfig/network-scripts/ifcfg-eth0
 DEVICE=eth0
 NAME=${_serverName}_eth0
@@ -47,6 +52,86 @@ BOOTPROTO=none
 IPADDR=${_ipAddress}
 NETMASK=${_ipNetmask}
 GATEWAY=${_ipGateway}
+EOF
+
+cat << EOF > /etc/sysconfig/network-scripts/ifcfg-virbr0
+DEVICE=virbr0
+IPADDR=192.168.1.254
+TYPE=Bridge
+ONBOOT=yes
+BOOTPROTO=none
+DELAY=5
+STP=yes
+EOF
+
+# IPTABLES
+cat << EOF > /etc/sysconfig/iptables
+*filter
+
+:INPUT ACCEPT [0:0]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+
+# DEFAULT HYPERVISOR INPUT
+-A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+-A INPUT -i virbr0 -p icmp -j ACCEPT
+-A INPUT -i lo -j ACCEPT
+
+# DEFAULT HYPERVISOR OUTPUT
+-A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+-A OUTPUT -p icmp -j ACCEPT
+
+# DEFAULT CONTAINERS OUTPUT
+-A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT
+-A FORWARD -p icmp -j ACCEPT
+
+# SSH HYPERVISOR INPUT
+-A INPUT -m state --state NEW -m tcp -p tcp -i eth0 --dport 22 -j ACCEPT
+-A OUTPUT -m state --state NEW -m tcp -p tcp -o eth0 --sport 22 -j ACCEPT
+
+# DNS CONTAINERS OUTPUT
+-A FORWARD -m state --state NEW -m udp -p udp -i virbr0 -o eth0 --dport 53 -j ACCEPT
+
+# HTTP CONTAINERS OUTPUT
+-A FORWARD -m state --state NEW -m tcp -p tcp -i virbr0 -o eth0 --dport 80 -j ACCEPT
+
+# HTTPS CONTAINERS OUTPUT
+-A FORWARD -m state --state NEW -m tcp -p tcp -i virbr0 -o eth0 --dport 443 -j ACCEPT
+
+# SMTP CONTAINERS OUTPUT
+-A FORWARD -m state --state NEW -m tcp -p tcp -i virbr0 --dport 25 -j ACCEPT
+
+# SMTP HYPERVISOR OUTPUT
+-A OUTPUT -m state --state NEW -m tcp -p tcp -o eth0 --dport 25 -j ACCEPT
+
+# DNS HYPERVISOR OUTPUT
+-A OUTPUT -m state --state NEW -m udp -p udp -o eth0 --dport 53 -j ACCEPT
+
+# HTTP HYPERVISOR OUTPUT
+-A OUTPUT -m state --state NEW -m tcp -p tcp -o eth0 --dport 80 -j ACCEPT
+
+# HTTPS HYPERVISOR OUTPUT
+-A OUTPUT -m state --state NEW -m tcp -p tcp -o eth0 --dport 443 -j ACCEPT
+
+# NTP HYPERVISOR OUTPUT
+-A OUTPUT -m state --state NEW -m udp -p udp -o eth0 --dport 123 -j ACCEPT
+
+# REJECT RULES
+-A FORWARD -j REJECT --reject-with icmp-host-prohibited
+-A INPUT -j DROP
+-A OUTPUT -j REJECT --reject-with icmp-host-prohibited
+
+COMMIT
+
+*nat
+
+:PREROUTING ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+
+-A POSTROUTING -s 192.168.1.0/24 -o eth0 -j MASQUERADE
+
+COMMIT
 EOF
 
 # MOTD
@@ -197,11 +282,6 @@ ln -fs /usr/share/zoneinfo/Europe/Paris /etc/localtime
 sed -i 's/#root:\t\tmarc/root:\t\tmonitoring@'$_domainName'/g' /etc/aliases
 sed -i 's/root/monitoring@'$_domainName'/g' /etc/crontab
 
-# NETWORK
-echo "127.0.0.1 localhost" > /etc/hosts
-sed -i 's/localhost.localdomain/'$_serverName.$_domainName'/g' /etc/sysconfig/network
-echo "NOZEROCONF=true" >> /etc/sysconfig/network
-
 # REPOSITORY
 rm -rf /etc/yum.repos.d/*
 
@@ -261,11 +341,35 @@ chmod 640 /etc/security/access.conf
 chmod 600 /etc/sysctl.conf
 
 # PACKETS INSTALLATION
-yum -y install logwatch vim-enhanced mlocate aide libcgroup
-chkconfig --del rdisc && chkconfig --del netconsole && chkconfig --del netfs && chkconfig --del restorecond && chkconfig --del blk-availability && chkconfig --del saslauthd
-chkconfig cgconfig on && chkconfig cgred on
+yum -y install logwatch vim-enhanced mlocate aide libcgroup ntpdate
+
+# SERVICES CONFIGURATION
+chkconfig --del ntpdate
+chkconfig --del rdisc
+chkconfig --del netconsole
+chkconfig --del netfs
+chkconfig --del restorecond
+chkconfig --del blk-availability
+chkconfig --del saslauthd
+
+chkconfig cgconfig on
+chkconfig cgred on
 
 # SELINUX
+
+# NTP
+echo "${_ntpServer}"> /etc/ntp/step-tickers
+cat << EOF > /etc/cron.daily/ntpdate
+#!/bin/sh
+
+/etc/init.d/ntpdate start >/dev/null 2>&1
+EXITVALUE=\$?
+if [ \$EXITVALUE != 0 ]; then
+    /usr/bin/logger -t ntpdate "ALERT exited abnormally with [\$EXITVALUE]"
+fi
+exit 0
+EOF
+chmod +x /etc/cron.daily/ntpdate
 
 # POSTFIX
 sed -i 's/inet_protocols = all/inet_protocols = ipv4/g' /etc/postfix/main.cf
@@ -329,10 +433,15 @@ include /etc/logrotate.d
 
 # system-specific logs may be also be configured here." > /etc/logrotate.conf
 
-reboot
-
 # OS CLEANUP
-echo "package-cleanup --oldkernels --count=1 -y
+cat << EOF > /etc/cron.d/cleanKernel
+SHELL=/bin/bash
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+MAILTO=root
+HOME=/
+@reboot   root    package-cleanup --oldkernels --count=1 -y >/dev/null 2>&1
+EOF
+
 rm -rf /etc/ssh/ssh_host*
 rm -rf ~/anaconda-ks.cfg ~/install.log ~/install.log.syslog
 rm -rf /var/log/anaconda.*
@@ -350,6 +459,7 @@ rm -rf /home/lost+found/
 rm -rf /var/log/yum.log
 rm -rf /boot/lost+found/
 rm -rf /mnt/ && rm -rf /opt/ && rm -rf /media/
+
 /usr/sbin/userdel shutdown
 /usr/sbin/userdel halt
 /usr/sbin/userdel games
@@ -357,108 +467,10 @@ rm -rf /mnt/ && rm -rf /opt/ && rm -rf /media/
 /usr/sbin/userdel ftp
 /usr/sbin/userdel gopher
 /usr/sbin/userdel lp
-history -c" > /tmp/clean
-sudo bash /tmp/clean && rm -f /tmp/clean
+history -c
 
-reboot
-
-#LXC
-sudo yum -y install gcc libcap-devel rsync ntpdate
-
-sudo chkconfig --del ntpdate
-sudo bash -c 'echo "${_ntpServer}"> /etc/ntp/step-tickers'
-sudo bash -c 'cat << EOF > /etc/cron.daily/ntpdate
-#!/bin/sh
-
-/etc/init.d/ntpdate start >/dev/null 2>&1
-EXITVALUE=\$?
-if [ \$EXITVALUE != 0 ]; then
-    /usr/bin/logger -t ntpdate "ALERT exited abnormally with [\$EXITVALUE]"
-fi
-exit 0
-EOF'
-chmod +x /etc/cron.daily/ntpdate
-
-sed -i 's/net.ipv4.ip_forward = 0/net.ipv4.ip_forward = 1/g' /etc/sysctl.conf
-sudo bash -c 'cat << EOF > /etc/sysconfig/network-scripts/ifcfg-br0
-DEVICE=virbr0
-IPADDR=192.168.1.254
-TYPE=Bridge
-ONBOOT=yes
-BOOTPROTO=none
-DELAY=5
-STP=yes
-EOF'
-
-sudo /etc/init.d/network restart
-sudo bash -c 'cat << EOF > /etc/sysconfig/iptables
-*filter
-
-:INPUT ACCEPT [0:0]
-:FORWARD ACCEPT [0:0]
-:OUTPUT ACCEPT [0:0]
-
-# DEFAULT HYPERVISOR INPUT
--A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
--A INPUT -i virbr0 -p icmp -j ACCEPT
--A INPUT -i lo -j ACCEPT
-
-# DEFAULT HYPERVISOR OUTPUT
--A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
--A OUTPUT -p icmp -j ACCEPT
-
-# DEFAULT CONTAINERS OUTPUT
--A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT
--A FORWARD -p icmp -j ACCEPT
-
-# SSH HYPERVISOR INPUT
--A INPUT -m state --state NEW -m tcp -p tcp -i eth0 --dport 22 -j ACCEPT
--A OUTPUT -m state --state NEW -m tcp -p tcp -o eth0 --sport 22 -j ACCEPT
-
-# DNS CONTAINERS OUTPUT
--A FORWARD -m state --state NEW -m udp -p udp -i virbr0 -o eth0 --dport 53 -j ACCEPT
-
-# HTTP CONTAINERS OUTPUT
--A FORWARD -m state --state NEW -m tcp -p tcp -i virbr0 -o eth0 --dport 80 -j ACCEPT
-
-# HTTPS CONTAINERS OUTPUT
--A FORWARD -m state --state NEW -m tcp -p tcp -i virbr0 -o eth0 --dport 443 -j ACCEPT
-
-# SMTP CONTAINERS OUTPUT
--A FORWARD -m state --state NEW -m tcp -p tcp -i virbr0 --dport 25 -j ACCEPT
-
-# SMTP HYPERVISOR OUTPUT
--A OUTPUT -m state --state NEW -m tcp -p tcp -o eth0 --dport 25 -j ACCEPT
-
-# DNS HYPERVISOR OUTPUT
--A OUTPUT -m state --state NEW -m udp -p udp -o eth0 --dport 53 -j ACCEPT
-
-# HTTP HYPERVISOR OUTPUT
--A OUTPUT -m state --state NEW -m tcp -p tcp -o eth0 --dport 80 -j ACCEPT
-
-# HTTPS HYPERVISOR OUTPUT
--A OUTPUT -m state --state NEW -m tcp -p tcp -o eth0 --dport 443 -j ACCEPT
-
-# NTP HYPERVISOR OUTPUT
--A OUTPUT -m state --state NEW -m udp -p udp -o eth0 --dport 123 -j ACCEPT
-
-# REJECT RULES
--A FORWARD -j REJECT --reject-with icmp-host-prohibited
--A INPUT -j DROP
--A OUTPUT -j REJECT --reject-with icmp-host-prohibited
-
-COMMIT
-
-*nat
-
-:PREROUTING ACCEPT [0:0]
-:POSTROUTING ACCEPT [0:0]
-:OUTPUT ACCEPT [0:0]
-
--A POSTROUTING -s 192.168.1.0/24 -o eth0 -j MASQUERADE
-
-COMMIT
-EOF'
+# LXC INSTALLATION
+yum -y install gcc libcap-devel rsync ntpdate
 curl -L http://downloads.sourceforge.net/project/lxc/lxc/lxc-0.9.0/lxc-0.9.0.tar.gz > lxc-0.9.0.tar.gz
 curl -L https://gist.github.com/hagix9/3514296/download > lxc-centos.tar.gz
 tar xf lxc-0.9.0.tar.gz
@@ -467,16 +479,18 @@ cd lxc-0.9.0
 mkdir /opt/lxc-0.9.0
 ./configure --prefix=/opt/lxc-0.9.0
 make
-sudo make install
+make install
 ln -s /opt/lxc-0.9.0 /opt/lxc
 cd .. 
-sudo cp gist*/lxc-centos /opt/lxc/share/lxc/templates/ #perms?
+cp gist*/lxc-centos /opt/lxc/share/lxc/templates/ #perms?
 rm -rf lxc-*
 rm -rf gist*
 /opt/lxc/bin/lxc-checkconfig
-sudo /opt/lxc/bin/lxc-create -n centos -t centos -B lvm --lvname lv_name --vgname vg_name --fstype ext4 --fssize 5GO
+/opt/lxc/bin/lxc-create -n centos -t centos -B lvm --lvname lv_name --vgname vg_name --fstype ext4 --fssize 5GO
 #echo "rootfs / rootfs rw 0 0" > /etc/mtab
 #lxc.tty = 1
 rm -rf /opt/lxc/var/lib/lxc/centos/rootfs
-sudo /opt/lxc/bin/lxc-start --name centos -d -c /opt/lxc/var/lib/lxc/centos/console -o /opt/lxc/var/lib/lxc/centos/log -p /opt/lxc/var/lib/lxc/centos/pid
-sudo ./lxc-console -n centos
+/opt/lxc/bin/lxc-start --name centos -d -c /opt/lxc/var/lib/lxc/centos/console -o /opt/lxc/var/lib/lxc/centos/log -p /opt/lxc/var/lib/lxc/centos/pid
+./lxc-console -n centos
+
+reboot

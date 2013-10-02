@@ -246,26 +246,10 @@ sed -i 's/PROMPT=yes/PROMPT=no/' /etc/sysconfig/init
 sed -i 's/exec.*/exec \/bin\/echo "Control-Alt-Delete pressed, but no action will be taken"/' /etc/init/control-alt-delete.conf
 
 touch /var/log/tallylog
-echo "# User changes will be destroyed the next time authconfig is run.
-auth        required      pam_env.so
-auth        sufficient    pam_unix.so nullok try_first_pass
-auth        requisite     pam_succeed_if.so uid >= 500 quiet
-auth        required      pam_deny.so
-auth        required      pam_tally2.so deny=3 onerr=fail unlock_time=60
-
-account     required      pam_unix.so
-account     sufficient    pam_succeed_if.so uid < 500 quiet
-account     required      pam_permit.so
-account     required      pam_tally2.so per_user
-
-password    requisite     pam_cracklib.so try_first_pass retry=3 minlen=9 lcredit=-2 ucredit=-2 dcredit=-2 ocredit=-2
-password    sufficient    pam_unix.so sha512 shadow nullok try_first_pass use_authtok remember=10
-password    required      pam_deny.so
-
-session     optional      pam_keyinit.so revoke
-session     required      pam_limits.so
-session     [success=1 default=ignore] pam_succeed_if.so service in crond quiet use_uid
-session     required      pam_unix.so" > /etc/pam.d/system-auth
+sed -i '0,/^auth/s//auth        required      pam_tally2.so deny=3 onerr=fail unlock_time=900\n&/' /etc/pam.d/system-auth
+sed -i '0,/^auth/s//auth        required      pam_tally2.so deny=3 onerr=fail unlock_time=900\n&/' /etc/pam.d/password-auth
+sed -i '0,/^account/s//account     required      pam_tally2.so\n&/' /etc/pam.d/system-auth
+sed -i '0,/^account/s//account     required      pam_tally2.so\n&/' /etc/pam.d/password-auth
 
 chmod 400 /etc/hosts.allow
 chmod 400 /etc/hosts.deny

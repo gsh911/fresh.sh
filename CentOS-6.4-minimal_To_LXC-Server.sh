@@ -399,7 +399,7 @@ chmod 640 /etc/security/access.conf
 chmod 600 /etc/sysctl.conf
 
 # PACKETS INSTALLATION
-yum -y install logwatch vim-enhanced mlocate aide libcgroup ntpdate
+yum -y install logwatch vim-enhanced mlocate aide libcgroup ntpdate dnsmasq
 
 # SERVICES CONFIGURATION
 chkconfig --del ntpdate
@@ -412,6 +412,7 @@ chkconfig --del saslauthd
 
 chkconfig cgconfig on
 chkconfig cgred on
+chkconfig dnsmasq on
 
 # NTP
 echo "${_ntpServer}"> /etc/ntp/step-tickers

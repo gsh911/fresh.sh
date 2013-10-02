@@ -328,8 +328,8 @@ sed -i 's/PROMPT=yes/PROMPT=no/' /etc/sysconfig/init
 sed -i 's/exec.*/exec \/bin\/echo "Control-Alt-Delete pressed, but no action will be taken"/' /etc/init/control-alt-delete.conf
 
 touch /var/log/tallylog
-sed -i '0,/^auth/s//auth        required      pam_tally2.so deny=3 onerr=fail unlock_time=900\n&/' /etc/pam.d/system-auth
-sed -i '0,/^auth/s//auth        required      pam_tally2.so deny=3 onerr=fail unlock_time=900\n&/' /etc/pam.d/password-auth
+sed -i '0,/^auth/s//auth        required      pam_tally2.so deny=3 audit onerr=fail unlock_time=900\n&/' /etc/pam.d/system-auth
+sed -i '0,/^auth/s//auth        required      pam_tally2.so deny=3 audit onerr=fail unlock_time=900\n&/' /etc/pam.d/password-auth
 sed -i '0,/^account/s//account     required      pam_tally2.so\n&/' /etc/pam.d/system-auth
 sed -i '0,/^account/s//account     required      pam_tally2.so\n&/' /etc/pam.d/password-auth
 

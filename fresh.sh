@@ -366,32 +366,54 @@ BOOTPROTO=none
 DELAY=5
 STP=yes' > /etc/sysconfig/network-scripts/ifcfg-br0"
 sudo /etc/init.d/network restart
-sudo sh -c "echo '*filter
+sudo cat << EOF > /etc/sysconfig/iptables
+*filter
 
 :INPUT ACCEPT [0:0]
 :FORWARD ACCEPT [0:0]
 :OUTPUT ACCEPT [0:0]
 
+# DEFAULT INPUT
 -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
 -A INPUT -p icmp -j ACCEPT
 -A INPUT -i lo -j ACCEPT
--A INPUT -m state --state NEW -m tcp -p tcp -i eth0 --dport 22 -j ACCEPT
--A INPUT -j REJECT --reject-with icmp-host-prohibited
 
+# SSH INBOUND
+-A INPUT -m state --state NEW -m tcp -p tcp -i eth0 --dport 22 -j ACCEPT
+-A OUTPUT -m state --state NEW -m tcp -p tcp -o eth0 --sport 22 -j ACCEPT
+
+# DEFAULT FORWARD
 -A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT
 -A FORWARD -p icmp -j ACCEPT
--A FORWARD -m state --state NEW -m udp -p udp -i br0 -o eth0 --dport 53 -j ACCEPT
--A FORWARD -m state --state NEW -m tcp -p tcp -i br0 -o eth0 --dport 80 -j ACCEPT
--A FORWARD -m state --state NEW -m tcp -p tcp -i br0 -o eth0 --dport 443 -j ACCEPT
--A FORWARD -j REJECT --reject-with icmp-host-prohibited
 
+# DNS FORWARD
+-A FORWARD -m state --state NEW -m udp -p udp -i br0 -o eth0 --dport 53 -j ACCEPT
+
+# HTTP FORWARD
+-A FORWARD -m state --state NEW -m tcp -p tcp -i br0 -o eth0 --dport 80 -j ACCEPT
+
+# HTTPS FORWARD
+-A FORWARD -m state --state NEW -m tcp -p tcp -i br0 -o eth0 --dport 443 -j ACCEPT
+
+# DEFAULT OUTPUT
 -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
 -A OUTPUT -p icmp -j ACCEPT
--A OUTPUT -m state --state NEW -m tcp -p tcp -o eth0 --sport 22 -j ACCEPT
+
+# DNS OUTPUT
 -A OUTPUT -m state --state NEW -m udp -p udp -o eth0 --dport 53 -j ACCEPT
+
+# HTTP OUTPUT
 -A OUTPUT -m state --state NEW -m tcp -p tcp -o eth0 --dport 80 -j ACCEPT
+
+# HTTPS OUTPUT
 -A OUTPUT -m state --state NEW -m tcp -p tcp -o eth0 --dport 443 -j ACCEPT
+
+# NTP HYPERVISOR OUTPUT
 -A OUTPUT -m state --state NEW -m udp -p udp -o eth0 --dport 123 -j ACCEPT
+
+# REJECT RULES
+-A FORWARD -j REJECT --reject-with icmp-host-prohibited
+-A INPUT -j REJECT --reject-with icmp-host-prohibited
 -A OUTPUT -j REJECT --reject-with icmp-host-prohibited
 
 COMMIT
@@ -404,7 +426,8 @@ COMMIT
 
 -A POSTROUTING -s 192.168.1.0/24 -o eth0 -j MASQUERADE
 
-COMMIT' > /etc/sysconfig/iptables"
+COMMIT
+EOF
 curl -L http://downloads.sourceforge.net/project/lxc/lxc/lxc-0.9.0/lxc-0.9.0.tar.gz > lxc-0.9.0.tar.gz
 curl -L https://gist.github.com/hagix9/3514296/download > lxc-centos.tar.gz
 tar xf lxc-0.9.0.tar.gz

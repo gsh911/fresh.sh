@@ -1,11 +1,9 @@
 # VARS
 _serverName="lxc1"
-_primaryDNS="8.8.8.8"
-#_primaryDNS="62.210.16.6"
-_secondaryDNS="8.8.4.4"
-#_secondaryDNS"62.210.16.7"
-_ntpServer="ntp.online.net"
 _domainName="cecurity.com"
+_primaryDNS="62.210.16.6"
+_secondaryDNS"62.210.16.7"
+_ntpServer="ntp.online.net"
 _ipAddress="192.168.155.129"
 _ipNetmask="255.255.255.0"
 _ipGateway="192.168.155.2"
@@ -38,7 +36,9 @@ EOF
 
 # NETWORK
 sed -i 's/net.ipv4.ip_forward = 0/net.ipv4.ip_forward = 1/g' /etc/sysctl.conf
+
 echo "127.0.0.1 localhost" > /etc/hosts
+
 sed -i 's/localhost.localdomain/'$_serverName.$_domainName'/g' /etc/sysconfig/network
 echo "NOZEROCONF=true" >> /etc/sysconfig/network
 
@@ -47,7 +47,7 @@ DEVICE=eth0
 NAME=${_serverName}_eth0
 TYPE=Ethernet
 ONBOOT=yes
-NM_CONTROLLED=yes
+NM_CONTROLLED=no
 BOOTPROTO=none
 IPADDR=${_ipAddress}
 NETMASK=${_ipNetmask}
@@ -56,12 +56,14 @@ EOF
 
 cat << EOF > /etc/sysconfig/network-scripts/ifcfg-virbr0
 DEVICE=virbr0
-IPADDR=192.168.1.254
+NAME=${_serverName}_virbr0
 TYPE=Bridge
 ONBOOT=yes
+NM_CONTROLLED=no
 BOOTPROTO=none
-DELAY=5
-STP=yes
+IPADDR=192.168.1.254
+NETMASK=255.255.0.0
+DELAY=0
 EOF
 
 # IPTABLES
@@ -139,8 +141,7 @@ cat << EOF > /etc/motd
 
 WARNING
 =======
-YOU MUST HAVE PRIOR AUTHORIZATION TO ACCESS THIS SYSTEM.
-ALL CONNECTIONS ARE LOGGED AND MONITORED.
+YOU MUST HAVE PRIOR AUTHORIZATION TO ACCESS THIS SYSTEM.ALL CONNECTIONS ARE LOGGED AND MONITORED.
 BY CONNECTING TO THIS SYSTEM YOU FULLY CONSENT TO ALL MONITORING.
 UN-AUTHORIZED ACCESS OR USE WILL BE PROSECUTED TO THE FULL EXTENT OF LAW.
 
@@ -355,8 +356,6 @@ chkconfig --del saslauthd
 chkconfig cgconfig on
 chkconfig cgred on
 
-# SELINUX
-
 # NTP
 echo "${_ntpServer}"> /etc/ntp/step-tickers
 cat << EOF > /etc/cron.daily/ntpdate
@@ -467,6 +466,7 @@ rm -rf /mnt/ && rm -rf /opt/ && rm -rf /media/
 /usr/sbin/userdel ftp
 /usr/sbin/userdel gopher
 /usr/sbin/userdel lp
+
 history -c
 
 # LXC INSTALLATION

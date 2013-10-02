@@ -141,7 +141,8 @@ cat << EOF > /etc/motd
 
 WARNING
 =======
-YOU MUST HAVE PRIOR AUTHORIZATION TO ACCESS THIS SYSTEM.ALL CONNECTIONS ARE LOGGED AND MONITORED.
+YOU MUST HAVE PRIOR AUTHORIZATION TO ACCESS THIS SYSTEM.
+ALL CONNECTIONS ARE LOGGED AND MONITORED.
 BY CONNECTING TO THIS SYSTEM YOU FULLY CONSENT TO ALL MONITORING.
 UN-AUTHORIZED ACCESS OR USE WILL BE PROSECUTED TO THE FULL EXTENT OF LAW.
 
@@ -204,7 +205,7 @@ echo "autocmd BufNewFile,BufReadPost messages* :se filetype=messages" > /etc/ske
 echo "autocmd BufNewFile,BufReadPost secure* :se filetype=messages" >> /etc/skel/.vim/ftdetect/messages.vim
 echo "autocmd BufNewFile,BufReadPost maillog* :se filetype=messages" >> /etc/skel/.vim/ftdetect/messages.vim
 echo "autocmd BufNewFile,BufReadPost cron* :se filetype=messages" >> /etc/skel/.vim/ftdetect/messages.vim
-cp -a /etc/skel/. /root
+/bin/cp -a /etc/skel/. /root
 
 # DISABLE ROOT
 > /etc/securetty
@@ -378,7 +379,8 @@ sed -i 's/inet_protocols = all/inet_protocols = ipv4/g' /etc/postfix/main.cf
 sed -i '/b32/d' /etc/audit/audit.rules
 
 # LOGWATCH
-echo "LogDir = /var/log
+cat << EOF > /usr/share/logwatch/default.conf/logwatch.conf
+LogDir = /var/log
 TmpDir = /var/cache/logwatch
 MailTo = monitoring@${_domainName}
 MailFrom = Logwatch <monitoring@${_domainName}>
@@ -386,14 +388,16 @@ Print =
 Range = yesterday
 Detail = Low
 Service = All
-Service = \"-zz-network\"     # Prevents execution of zz-network service, which
-Service = \"-zz-sys\"         # Prevents execution of zz-sys service, which
-Service = \"-eximstats\"      # Prevents execution of eximstats service, which
-mailer = \"sendmail -t\"" > /usr/share/logwatch/default.conf/logwatch.conf
+Service = "-zz-network"     # Prevents execution of zz-network service, which
+Service = "-zz-sys"         # Prevents execution of zz-sys service, which
+Service = "-eximstats"      # Prevents execution of eximstats service, which
+mailer = "sendmail -t"
+EOF
 
 # LOGROTATE
 mkdir /var/log/archives
-echo "# see \"man logrotate\" for details
+cat << EOF > /etc/logrotate.conf
+# see "man logrotate" for details
 # rotate log files weekly
 weekly
 
@@ -430,7 +434,8 @@ include /etc/logrotate.d
     rotate 1
 }
 
-# system-specific logs may be also be configured here." > /etc/logrotate.conf
+# system-specific logs may be also be configured here.
+EOF
 
 # OS CLEANUP
 cat << EOF > /etc/cron.d/cleanKernel
@@ -457,7 +462,8 @@ rm -rf /usr/lost+found/
 rm -rf /home/lost+found/
 rm -rf /var/log/yum.log
 rm -rf /boot/lost+found/
-rm -rf /mnt/ && rm -rf /opt/ && rm -rf /media/
+rm -rf /mnt/
+rm -rf /media/
 
 /usr/sbin/userdel shutdown
 /usr/sbin/userdel halt
@@ -470,25 +476,34 @@ rm -rf /mnt/ && rm -rf /opt/ && rm -rf /media/
 history -c
 
 # LXC INSTALLATION
-yum -y install gcc libcap-devel rsync ntpdate
+yum -y install gcc libcap-devel rsync make
+
 curl -L http://downloads.sourceforge.net/project/lxc/lxc/lxc-0.9.0/lxc-0.9.0.tar.gz > lxc-0.9.0.tar.gz
 curl -L https://gist.github.com/hagix9/3514296/download > lxc-centos.tar.gz
+
 tar xf lxc-0.9.0.tar.gz
 tar xf lxc-centos.tar.gz
 cd lxc-0.9.0
+
 mkdir /opt/lxc-0.9.0
 ./configure --prefix=/opt/lxc-0.9.0
 make
 make install
 ln -s /opt/lxc-0.9.0 /opt/lxc
 cd .. 
-cp gist*/lxc-centos /opt/lxc/share/lxc/templates/ #perms?
+cp gist*/lxc-centos /opt/lxc/share/lxc/templates/
+chmod +x /opt/lxc/share/lxc/templates/lxc-centos
 rm -rf lxc-*
 rm -rf gist*
 /opt/lxc/bin/lxc-checkconfig
-/opt/lxc/bin/lxc-create -n centos -t centos -B lvm --lvname lv_name --vgname vg_name --fstype ext4 --fssize 5GO
+cat << EOF > /opt/lxc-0.9.0/etc/lxc/default.conf
+lxc.network.type = veth
+lxc.network.link = virbr0
+lxc.network.flags = up
+lxc.tty = 1
+EOF
+/opt/lxc/bin/lxc-create -n centos -t centos -B lvm --lvname lv_lxc_centos --vgname vg_${_serverName} --fstype ext4 --fssize 5GO
 #echo "rootfs / rootfs rw 0 0" > /etc/mtab
-#lxc.tty = 1
 rm -rf /opt/lxc/var/lib/lxc/centos/rootfs
 /opt/lxc/bin/lxc-start --name centos -d -c /opt/lxc/var/lib/lxc/centos/console -o /opt/lxc/var/lib/lxc/centos/log -p /opt/lxc/var/lib/lxc/centos/pid
 /opt/lxc/bin/lxc-console -n centos

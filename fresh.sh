@@ -277,8 +277,8 @@ sed -i '/b32/d' /etc/audit/audit.rules
 # LOGWATCH
 echo "LogDir = /var/log
 TmpDir = /var/cache/logwatch
-MailTo = monitoring@$_domainName
-MailFrom = Logwatch <monitoring@$_domainName>
+MailTo = monitoring@${_domainName}
+MailFrom = Logwatch <monitoring@${_domainName}>
 Print =
 Range = yesterday
 Detail = Low

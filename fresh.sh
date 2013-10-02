@@ -2,7 +2,7 @@
 _serverName="lxc1"
 _domainName="cecurity.com"
 _primaryDNS="62.210.16.6"
-_secondaryDNS"62.210.16.7"
+_secondaryDNS="62.210.16.7"
 _ntpServer="ntp.online.net"
 _ipAddress="192.168.155.129"
 _ipNetmask="255.255.255.0"
@@ -491,6 +491,6 @@ rm -rf gist*
 #lxc.tty = 1
 rm -rf /opt/lxc/var/lib/lxc/centos/rootfs
 /opt/lxc/bin/lxc-start --name centos -d -c /opt/lxc/var/lib/lxc/centos/console -o /opt/lxc/var/lib/lxc/centos/log -p /opt/lxc/var/lib/lxc/centos/pid
-./lxc-console -n centos
+/opt/lxc/bin/lxc-console -n centos
 
 reboot

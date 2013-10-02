@@ -1,9 +1,9 @@
 # VARS
 _serverName="lxc1"
 _primaryDNS="8.8.8.8"
-#62.210.16.6
+#_primaryDNS="62.210.16.6"
 _secondaryDNS="8.8.4.4"
-#62.210.16.7
+#_secondaryDNS"62.210.16.7"
 _ntpServer="ntp.online.net"
 _domainName="cecurity.com"
 _ipAddress="192.168.155.129"

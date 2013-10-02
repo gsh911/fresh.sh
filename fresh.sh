@@ -33,7 +33,7 @@ nameserver ${_primaryDNS}
 nameserver ${_secondaryDNS}
 EOF
 
-# NETWORK
+# NETWORK
 cat << EOF > /etc/sysconfig/network-scripts/ifcfg-eth0
 DEVICE=eth0
 NAME=${_serverName}_eth0
@@ -279,9 +279,6 @@ updatedb
 chkconfig --del rdisc && chkconfig --del netconsole && chkconfig --del netfs && chkconfig --del restorecond && chkconfig --del blk-availability && chkconfig --del saslauthd
 chkconfig cgconfig on && chkconfig cgred on
 
-# NTPD
-sed -i '/-6/d' /etc/ntp.conf
-
 # SELINUX
 
 # POSTFIX
@@ -380,17 +377,27 @@ sudo bash /tmp/clean && rm -f /tmp/clean
 reboot
 
 #LXC
-sudo yum -y install gcc libcap-devel rsync ntp
+sudo yum -y install gcc libcap-devel rsync ntpdate
 sudo chkconfig --del ntpdate
-sudo chkconfig ntpd on
+
+sudo bash -c 'cat << EOF > /etc/ntp/step-tickers
+server 0.fr.pool.ntp.org
+server 1.fr.pool.ntp.org
+server 2.fr.pool.ntp.org
+server 3.fr.pool.ntp.org
+EOF'
+
 sed -i 's/net.ipv4.ip_forward = 0/net.ipv4.ip_forward = 1/g' /etc/sysctl.conf
-sudo sh -c "echo 'DEVICE=virbr0
+sudo bash -c 'cat << EOF > /etc/sysconfig/network-scripts/ifcfg-br0
+DEVICE=virbr0
 IPADDR=192.168.1.254
 TYPE=Bridge
 ONBOOT=yes
 BOOTPROTO=none
 DELAY=5
-STP=yes' > /etc/sysconfig/network-scripts/ifcfg-br0"
+STP=yes
+EOF'
+
 sudo /etc/init.d/network restart
 sudo bash -c 'cat << EOF > /etc/sysconfig/iptables
 *filter

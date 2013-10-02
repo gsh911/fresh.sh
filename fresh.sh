@@ -10,45 +10,57 @@ _adminUser="anthony.cabero"
 _adminPassword="12341234"
 
 # MOUNT
-echo "/dev/sda1                       /boot                   ext4    defaults,nosuid,nodev,noexec            1       2
-/dev/mapper/vg_$_serverName-lv_root     /                       ext4    defaults                                1       1
-/dev/mapper/vg_$_serverName-lv_home     /home                   ext4    defaults,nosuid,nodev,noexec            1       2
-/dev/mapper/vg_$_serverName-lv_tmp      /tmp                    ext4    defaults,nosuid,nodev,noexec            1       2
-/dev/mapper/vg_$_serverName-lv_usr      /usr                    ext4    defaults,nodev                          1       2
-/dev/mapper/vg_$_serverName-lv_var      /var                    ext4    defaults,nosuid,nodev,noexec            1       2
-/dev/mapper/vg_$_serverName-lv_swap     swap                    swap    defaults                                0       0
+cat << EOF > /etc/fstab
+/dev/sda1                       /boot                   ext4    defaults,nosuid,nodev,noexec            1       2
+/dev/mapper/vg_${_serverName}-lv_root     /                       ext4    defaults                                1       1
+/dev/mapper/vg_${_serverName}-lv_home     /home                   ext4    defaults,nosuid,nodev,noexec            1       2
+/dev/mapper/vg_${_serverName}-lv_tmp      /tmp                    ext4    defaults,nosuid,nodev,noexec            1       2
+/dev/mapper/vg_${_serverName}-lv_usr      /usr                    ext4    defaults,nodev                          1       2
+/dev/mapper/vg_${_serverName}-lv_var      /var                    ext4    defaults,nosuid,nodev,noexec            1       2
+/dev/mapper/vg_${_serverName}-lv_swap     swap                    swap    defaults                                0       0
 /tmp                            /var/tmp                none    defaults,nosuid,nodev,noexec,bind       0       0
 tmpfs                           /dev/shm                tmpfs   defaults,nosuid,nodev,noexec            0       0
 devpts                          /dev/pts                devpts  gid=5,mode=620                          0       0
 sysfs                           /sys                    sysfs   defaults                                0       0
-proc                            /proc                   proc    defaults                                0       0" > /etc/fstab
+proc                            /proc                   proc    defaults                                0       0
+EOF
 
 # DNS
-echo "domain $_domainName
-search $_domainName
-nameserver $_primaryDNS
-nameserver $_secondaryDNS" > /etc/resolv.conf
+cat << EOF > /etc/resolv.conf
+domain ${_domainName}
+search ${_domainName}
+nameserver ${_primaryDNS}
+nameserver ${_secondaryDNS}
+EOF
 
 # NETWORK
-echo "DEVICE=eth0
-NAME=$_serverName_eth0
+cat << EOF > /etc/sysconfig/network-scripts/ifcfg-eth0
+DEVICE=eth0
+NAME=${_serverName}_eth0
 TYPE=Ethernet
 ONBOOT=yes
 NM_CONTROLLED=yes
 BOOTPROTO=none
-IPADDR=$_ipAddress
-NETMASK=$_ipNetmask
-GATEWAY=$_ipGateway" > /etc/sysconfig/network-scripts/ifcfg-eth0
+IPADDR=${_ipAddress}
+NETMASK=${_ipNetmask}
+GATEWAY=${_ipGateway}
+EOF
 
 # MOTD
-echo "
+cat << EOF > /etc/motd
+
 WARNING
 =======
-YOU MUST HAVE PRIOR AUTHORIZATION TO ACCESS THIS SYSTEM. ALL CONNECTIONS ARE LOGGED AND MONITORED. BY CONNECTING TO THIS SYSTEM YOU FULLY CONSENT TO ALL MONITORING. UN-AUTHORIZED ACCESS OR USE WILL BE PROSECUTED TO THE FULL EXTENT OF LAW.
-" > /etc/motd
+YOU MUST HAVE PRIOR AUTHORIZATION TO ACCESS THIS SYSTEM.
+ALL CONNECTIONS ARE LOGGED AND MONITORED.
+BY CONNECTING TO THIS SYSTEM YOU FULLY CONSENT TO ALL MONITORING.
+UN-AUTHORIZED ACCESS OR USE WILL BE PROSECUTED TO THE FULL EXTENT OF LAW.
+
+EOF
 
 # PROFILE
-echo "# History params
+cat << EOF > /etc/profile.d/custom.sh 
+# History params
 
 readonly HISTFILE
 export HISTTIMEFORMAT=\"%h/%d - %H:%M:%S \"
@@ -75,11 +87,12 @@ readonly TMOUT
 export EDITOR=vim
 
 # Login mail alert
-echo 'Shell access '\`date\` \`who | tail -1 \`| mail -s \"Access on \`hostname\`\" monitoring@$_domainName
+echo 'Shell access '\`date\` \`who | tail -1 \`| mail -s \"Access on \`hostname\`\" monitoring@${_domainName}
 
 # Prompt
 
-PS1=\"\[\e[01;41m\]\t\[\e[00m\] \[\e[01;32m\]\u@\h\[\e[00m\]:\[\e[01;34m\]\w\[\e[00m\] \"" > /etc/profile.d/custom.sh
+PS1=\"\[\e[01;41m\]\t\[\e[00m\] \[\e[01;32m\]\u@\h\[\e[00m\]:\[\e[01;34m\]\w\[\e[00m\] \"
+EOF
 
 # VIM
 echo "set number
@@ -366,7 +379,7 @@ BOOTPROTO=none
 DELAY=5
 STP=yes' > /etc/sysconfig/network-scripts/ifcfg-br0"
 sudo /etc/init.d/network restart
-sudo -s "cat << EOF > /etc/sysconfig/iptables
+sudo bash -c 'cat << EOF > /etc/sysconfig/iptables
 *filter
 
 :INPUT ACCEPT [0:0]
@@ -427,7 +440,7 @@ COMMIT
 -A POSTROUTING -s 192.168.1.0/24 -o eth0 -j MASQUERADE
 
 COMMIT
-EOF
+EOF'
 curl -L http://downloads.sourceforge.net/project/lxc/lxc/lxc-0.9.0/lxc-0.9.0.tar.gz > lxc-0.9.0.tar.gz
 curl -L https://gist.github.com/hagix9/3514296/download > lxc-centos.tar.gz
 tar xf lxc-0.9.0.tar.gz

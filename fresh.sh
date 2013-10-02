@@ -366,46 +366,46 @@ BOOTPROTO=none
 DELAY=5
 STP=yes' > /etc/sysconfig/network-scripts/ifcfg-br0"
 sudo /etc/init.d/network restart
-sudo cat << EOF > /etc/sysconfig/iptables
+sudo -s "cat << EOF > /etc/sysconfig/iptables
 *filter
 
 :INPUT ACCEPT [0:0]
 :FORWARD ACCEPT [0:0]
 :OUTPUT ACCEPT [0:0]
 
-# DEFAULT INPUT
+# DEFAULT HYPERVISOR INPUT
 -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
 -A INPUT -p icmp -j ACCEPT
 -A INPUT -i lo -j ACCEPT
 
-# SSH INBOUND
--A INPUT -m state --state NEW -m tcp -p tcp -i eth0 --dport 22 -j ACCEPT
--A OUTPUT -m state --state NEW -m tcp -p tcp -o eth0 --sport 22 -j ACCEPT
-
-# DEFAULT FORWARD
--A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT
--A FORWARD -p icmp -j ACCEPT
-
-# DNS FORWARD
--A FORWARD -m state --state NEW -m udp -p udp -i br0 -o eth0 --dport 53 -j ACCEPT
-
-# HTTP FORWARD
--A FORWARD -m state --state NEW -m tcp -p tcp -i br0 -o eth0 --dport 80 -j ACCEPT
-
-# HTTPS FORWARD
--A FORWARD -m state --state NEW -m tcp -p tcp -i br0 -o eth0 --dport 443 -j ACCEPT
-
-# DEFAULT OUTPUT
+# DEFAULT HYPERVISOR OUTPUT
 -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
 -A OUTPUT -p icmp -j ACCEPT
 
-# DNS OUTPUT
+# DEFAULT CONTAINERS OUTPUT
+-A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT
+-A FORWARD -p icmp -j ACCEPT
+
+# SSH HYPERVISOR INPUT
+-A INPUT -m state --state NEW -m tcp -p tcp -i eth0 --dport 22 -j ACCEPT
+-A OUTPUT -m state --state NEW -m tcp -p tcp -o eth0 --sport 22 -j ACCEPT
+
+# DNS CONTAINERS OUTPUT
+-A FORWARD -m state --state NEW -m udp -p udp -i virbr0 -o eth0 --dport 53 -j ACCEPT
+
+# HTTP CONTAINERS OUTPUT
+-A FORWARD -m state --state NEW -m tcp -p tcp -i virbr0 -o eth0 --dport 80 -j ACCEPT
+
+# HTTPS CONTAINERS OUTPUT
+-A FORWARD -m state --state NEW -m tcp -p tcp -i virbr0 -o eth0 --dport 443 -j ACCEPT
+
+# DNS HYPERVISOR OUTPUT
 -A OUTPUT -m state --state NEW -m udp -p udp -o eth0 --dport 53 -j ACCEPT
 
-# HTTP OUTPUT
+# HTTP HYPERVISOR OUTPUT
 -A OUTPUT -m state --state NEW -m tcp -p tcp -o eth0 --dport 80 -j ACCEPT
 
-# HTTPS OUTPUT
+# HTTPS HYPERVISOR OUTPUT
 -A OUTPUT -m state --state NEW -m tcp -p tcp -o eth0 --dport 443 -j ACCEPT
 
 # NTP HYPERVISOR OUTPUT
@@ -413,7 +413,7 @@ sudo cat << EOF > /etc/sysconfig/iptables
 
 # REJECT RULES
 -A FORWARD -j REJECT --reject-with icmp-host-prohibited
--A INPUT -j REJECT --reject-with icmp-host-prohibited
+-A INPUT -j DROP
 -A OUTPUT -j REJECT --reject-with icmp-host-prohibited
 
 COMMIT
@@ -427,7 +427,7 @@ COMMIT
 -A POSTROUTING -s 192.168.1.0/24 -o eth0 -j MASQUERADE
 
 COMMIT
-EOF
+EOF"
 curl -L http://downloads.sourceforge.net/project/lxc/lxc/lxc-0.9.0/lxc-0.9.0.tar.gz > lxc-0.9.0.tar.gz
 curl -L https://gist.github.com/hagix9/3514296/download > lxc-centos.tar.gz
 tar xf lxc-0.9.0.tar.gz

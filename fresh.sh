@@ -39,8 +39,10 @@ sed -i 's/net.ipv4.ip_forward = 0/net.ipv4.ip_forward = 1/g' /etc/sysctl.conf
 
 echo "127.0.0.1 localhost" > /etc/hosts
 
-sed -i 's/localhost.localdomain/'$_serverName.$_domainName'/g' /etc/sysconfig/network
+sed -i 's/localhost.localdomain/'${_serverName}.${_domainName}'/g' /etc/sysconfig/network
 echo "NOZEROCONF=true" >> /etc/sysconfig/network
+
+hostname ${_serverName}
 
 cat << EOF > /etc/sysconfig/network-scripts/ifcfg-eth0
 DEVICE=eth0
@@ -257,22 +259,67 @@ sed -i '/^PASS_MIN_LEN/c\PASS_MIN_LEN 9' /etc/login.defs
 sed -i '/^PASS_WARN_AGE/c\PASS_WARN_AGE 15' /etc/login.defs
 
 # SSH
-sed -i '/^#PasswordAuthentication yes/d' /etc/ssh/sshd_config
-sed -i 's/#UseDNS yes/UseDNS no/g' /etc/ssh/sshd_config
-sed -i 's/#ClientAliveInterval 0/ClientAliveInterval 60/g' /etc/ssh/sshd_config
-sed -i '/UsePAM yes/d' /etc/ssh/sshd_config
-sed -i 's/#UsePAM no/UsePAM yes/g' /etc/ssh/sshd_config
-sed -i 's/#LoginGraceTime 2m/LoginGraceTime 15s/g' /etc/ssh/sshd_config
-sed -i 's/#PermitRootLogin yes/PermitRootLogin no/g' /etc/ssh/sshd_config
-sed -i '/GSSAPI/d' /etc/ssh/sshd_config
-sed -i 's/#ListenAddress 0.0.0.0/ListenAddress '$_ipAddress'/g' /etc/ssh/sshd_config
-sed -i 's/#RSAAuthentication yes/RSAAuthentication no/g' /etc/ssh/sshd_config
-sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication no/g' /etc/ssh/sshd_config
-sed -i '/X11Forwarding yes/d' /etc/ssh/sshd_config
-sed -i 's/^#ServerKeyBits 1024/ServerKeyBits 2048/g' /etc/ssh/sshd_config
-sed -i 's/^#MaxAuthTries 6/MaxAuthTries 3/g' /etc/ssh/sshd_config
-sed -i 's/^#MaxSessions 10/MaxSessions 1/g' /etc/ssh/sshd_config
-echo "AllowUsers ${_adminUser}" >> /etc/ssh/sshd_config
+cat << EOF > /etc/ssh/sshd_config
+Port 22
+AddressFamily inet
+ListenAddress ${_ipAddress}
+Protocol 2
+
+HostKey /etc/ssh/ssh_host_rsa_key
+HostKey /etc/ssh/ssh_host_dsa_key
+ServerKeyBits 2048
+
+SyslogFacility AUTHPRIV
+LogLevel INFO
+
+LoginGraceTime 15s
+PermitRootLogin no
+StrictModes yes
+MaxAuthTries 3
+MaxSessions 1
+
+RSAAuthentication no
+PubkeyAuthentication no
+RhostsRSAAuthentication no
+GSSAPIAuthentication no
+HostbasedAuthentication no
+IgnoreUserKnownHosts no
+IgnoreRhosts yes
+PasswordAuthentication yes
+ChallengeResponseAuthentication no
+KerberosAuthentication no
+UsePAM yes
+
+AcceptEnv LANG LC_CTYPE LC_NUMERIC LC_TIME LC_COLLATE LC_MONETARY LC_MESSAGES
+AcceptEnv LC_PAPER LC_NAME LC_ADDRESS LC_TELEPHONE LC_MEASUREMENT
+AcceptEnv LC_IDENTIFICATION LC_ALL LANGUAGE
+AcceptEnv XMODIFIERS
+
+AllowAgentForwarding no
+AllowTcpForwarding no
+GatewayPorts no
+X11Forwarding no
+X11DisplayOffset 10
+X11UseLocalhost yes
+PrintMotd yes
+PrintLastLog yes
+TCPKeepAlive yes
+UseLogin no
+UsePrivilegeSeparation yes
+PermitUserEnvironment no
+Compression delayed
+ClientAliveInterval 60
+ClientAliveCountMax 3
+ShowPatchLevel no
+UseDNS no
+PidFile /var/run/sshd.pid
+MaxStartups 10
+PermitTunnel no
+
+Subsystem       sftp    /usr/libexec/openssh/sftp-server
+
+AllowUsers ${_adminUser}
+EOF
 
 echo "ALL:ALL" >> /etc/hosts.deny
 echo "sshd:ALL" >> /etc/hosts.allow
@@ -282,7 +329,6 @@ ln -fs /usr/share/zoneinfo/Europe/Paris /etc/localtime
 
 # MAIL
 sed -i 's/#root:\t\tmarc/root:\t\tmonitoring@'$_domainName'/g' /etc/aliases
-sed -i 's/root/monitoring@'$_domainName'/g' /etc/crontab
 
 # REPOSITORY
 rm -rf /etc/yum.repos.d/*
@@ -474,6 +520,15 @@ rm -rf /media/
 /usr/sbin/userdel lp
 
 history -c
+
+# SERVICES RESTART
+/etc/init.d/network restart >/dev/null 2>&1
+/etc/init.d/sshd restart >/dev/null 2>&1
+/etc/init.d/iptables restart >/dev/null 2>&1
+/etc/init.d/ntpdate restart >/dev/null 2>&1
+/etc/init.d/postfix restart >/dev/null 2>&1
+/etc/init.d/auditd restart >/dev/null 2>&1
+sysctl -q -p
 
 # LXC INSTALLATION
 yum -y install gcc libcap-devel rsync make

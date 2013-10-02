@@ -426,7 +426,7 @@ sudo bash -c 'cat << EOF > /etc/sysconfig/iptables
 -A FORWARD -m state --state NEW -m tcp -p tcp -i virbr0 -o eth0 --dport 443 -j ACCEPT
 
 # SMTP CONTAINERS OUTPUT
--A FORWARD -m state --state NEW -m tcp -p tcp -o virbr0 --dport 25 -j ACCEPT
+-A FORWARD -m state --state NEW -m tcp -p tcp -i virbr0 --dport 25 -j ACCEPT
 
 # SMTP HYPERVISOR OUTPUT
 -A OUTPUT -m state --state NEW -m tcp -p tcp -o eth0 --dport 25 -j ACCEPT

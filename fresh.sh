@@ -63,7 +63,7 @@ cat << EOF > /etc/profile.d/custom.sh
 # History params
 
 readonly HISTFILE
-export HISTTIMEFORMAT=\"%h/%d - %H:%M:%S \"
+export HISTTIMEFORMAT="%h/%d - %H:%M:%S "
 export HISTCONTROL=ignoredups
 export HISTSIZE=5000
 export HISTFILESIZE=20000
@@ -87,11 +87,11 @@ readonly TMOUT
 export EDITOR=vim
 
 # Login mail alert
-echo 'Shell access '\`date\` \`who | tail -1 \`| mail -s \"Access on \`hostname\`\" monitoring@${_domainName}
+echo 'Shell access '\`date\` \`who | tail -1 \`| mail -s "Access on \`hostname\`" monitoring@${_domainName}
 
 # Prompt
 
-PS1=\"\[\e[01;41m\]\t\[\e[00m\] \[\e[01;32m\]\u@\h\[\e[00m\]:\[\e[01;34m\]\w\[\e[00m\] \"
+PS1="\[\e[01;41m\]\t\[\e[00m\] \[\e[01;32m\]\u@\h\[\e[00m\]:\[\e[01;34m\]\w\[\e[00m\] "
 EOF
 
 # VIM

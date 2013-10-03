@@ -570,9 +570,12 @@ lxc.network.flags = up
 lxc.tty = 1
 EOF
 
+mkdir /var/log/lxc
+mkdir /var/run/lxc
+
 # COMMAND EXAMPLES
 
-#/opt/lxc/bin/lxc-create -n centos -t centos -B lvm --lvname lv_lxc_centos --vgname vg_${_serverName} --fstype ext4 --fssize 5GO
+#lxc-create -n centos -t centos -B lvm --lvname lv_lxc_centos --vgname vg_${_serverName} --fstype ext4 --fssize 5GO
 #rm -rf /opt/lxc/var/lib/lxc/centos/rootfs
-#/opt/lxc/bin/lxc-start --name centos -d -c /opt/lxc/var/lib/lxc/centos/console -o /opt/lxc/var/lib/lxc/centos/log -p /opt/lxc/var/lib/lxc/centos/pid
-#/opt/lxc/bin/lxc-console -n centos
+#lxc-start --name centos -d -c /var/log/lxc/centos-console.log -o /var/log/lxc/centos.log -p /var/run/lxc/centos.pid
+#lxc-console -n centos
